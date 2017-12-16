@@ -27,18 +27,15 @@ void Image::create_gaussian_kernel_1d(
 	float com1 = 1.f/(sqrt(2.f*M_PI)*sigma);
 	float com2 = -1.f/(2.f*sigma*sigma);
 	float sum = 0.f;
+	int radius = kernel_size/2;
 	for (int i = 0; i < kernel_size; ++i) {
-		kernel[i] = com1*exp((float)i*i*com2);
+		kernel[i] = com1*exp((float)(i-radius)*(i-radius)*com2);
 		sum+= kernel[i];
 	}
 	float com3 = 1.f/sum;
 	for (int i = 0; i < kernel_size; ++i) {
 		kernel[i] = kernel[i]*com3;
 	}
-	/*for (int i = 0; i < kernel_size; ++i) {
-		kernel[i] = 0.f;
-	}*/
-
 }
 
 /*
@@ -62,10 +59,11 @@ void Image::create_gaussian_kernel_2d(
 	float com1 = 1.f/(2.f*M_PI*sigma*sigma);
 	float com2 = -1.f/(2.f*sigma*sigma);
 	float sum = 0.f;
+	int radius = kernel_size/2;
 	for (int j = 0; j < kernel_size; ++j) {
 		for (int i = 0; i < kernel_size; ++i) {
 			int current = i+j*kernel_size;
-			kernel[current] = com1*exp((float)(i*i+j*j)*com2);
+			kernel[current] = com1*exp((float)((i-radius)*(i-radius)+(j-radius)*(j-radius))*com2);
 			sum+=  kernel[current];
 		}
 	}
@@ -75,10 +73,6 @@ void Image::create_gaussian_kernel_2d(
 			kernel[i+j*kernel_size] = kernel[i+j*kernel_size]*com3;
 		}
 	}
-	/*for (int j = 0; j < kernel_size; ++j) {
-		for (int i = 0; i < kernel_size; ++i) {
-			kernel[i+j*kernel_size] = 0.f;
-		}}*/
 }
 
 
@@ -135,7 +129,8 @@ void Image::filter(Image *target, int kernel_size, float* kernel, WrapMode wrap_
 							}}}
 					targetValue+= pixel_value*kernel[kernel_index];
 					kernel_index++;
-				}}
+				}
+			}
 			target->setPixel(i,j,targetValue);
 			}}
 }
@@ -198,18 +193,16 @@ void Image::filter_separable(Image *target, int kernel_size, float* kernel, Wrap
 					targetValue+= pixel_value*kernel[kernel_index];
 					kernel_index++;
 				}
-			//target_horizontal[i][j]=targetValue;
-			std::cout<<i <<j<<std::endl;
-			target->setPixel(i,j,targetValue);
+			target_horizontal[i][j]=targetValue;
 		}
 	}
-	//do the vertikal convolution.
+	//do the vertical convolution.
 	for(int i =0; i < m_width; i++){
 		for(int j = 0; j < m_height; j++){
 			targetValue = glm::vec4(0.f);
 			kernel_index = 0;
 			//traverse the values in corresponding original pixels
-			for(int q = i-radius; q <= i+radius; q++){
+			for(int q = j-radius; q <= j+radius; q++){
 					if (q >= 0 && q <m_height){
 						pixel_value = target_horizontal[i][q];
 					}
