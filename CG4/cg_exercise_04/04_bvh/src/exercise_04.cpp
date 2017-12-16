@@ -24,9 +24,21 @@ void Image::create_gaussian_kernel_1d(
 
 	// TODO: calculate filter values as described on the exercise sheet. 
 	// Make sure your kernel is normalized
+	float com1 = 1.f/(sqrt(2.f*M_PI)*sigma);
+	float com2 = -1.f/(2.f*sigma*sigma);
+	float sum = 0.f;
 	for (int i = 0; i < kernel_size; ++i) {
-		kernel[i] = 0.f;
+		kernel[i] = com1*exp((float)i*i*com2);
+		sum+= kernel[i];
 	}
+	float com3 = 1.f/sum;
+	for (int i = 0; i < kernel_size; ++i) {
+		kernel[i] = kernel[i]*com3;
+	}
+	/*for (int i = 0; i < kernel_size; ++i) {
+		kernel[i] = 0.f;
+	}*/
+
 }
 
 /*
@@ -47,12 +59,28 @@ void Image::create_gaussian_kernel_2d(
 
 	// TODO: calculate filter values as described on the exercise sheet. 
 	// Make sure your kernel is normalized
+	float com1 = 1.f/(2.f*M_PI*sigma*sigma);
+	float com2 = -1.f/(2.f*sigma*sigma);
+	float sum = 0.f;
 	for (int j = 0; j < kernel_size; ++j) {
 		for (int i = 0; i < kernel_size; ++i) {
-			kernel[i+j*kernel_size] = 0.f;
+			int current = i+j*kernel_size;
+			kernel[current] = com1*exp((float)(i*i+j*j)*com2);
+			sum+=  kernel[current];
 		}
 	}
+	float com3 = 1.f/sum;
+	for (int j = 0; j < kernel_size; ++j) {
+		for (int i = 0; i < kernel_size; ++i) {
+			kernel[i+j*kernel_size] = kernel[i+j*kernel_size]*com3;
+		}
+	}
+	/*for (int j = 0; j < kernel_size; ++j) {
+		for (int i = 0; i < kernel_size; ++i) {
+			kernel[i+j*kernel_size] = 0.f;
+		}}*/
 }
+
 
 /*
  * Convolve an image with a 2d filter kernel
@@ -69,7 +97,47 @@ void Image::filter(Image *target, int kernel_size, float* kernel, WrapMode wrap_
 	cg_assert (kernel_size > 0 && "kernel size should be greater than 0.");
 	cg_assert (target);
 	cg_assert (target->getWidth() == m_width && target->getHeight() == m_height);
-
+	int radius = kernel_size/2;
+	glm::vec4 targetValue = glm::vec4(0.f);
+	int kernel_index = 0;
+	int k1,q1;
+	glm::vec4 pixel_value;
+	//get the value of each target pixel
+	for(int i =0; i < m_width; i++){
+		for(int j = 0; j < m_height; j++){
+			targetValue = glm::vec4(0.f);
+			kernel_index = 0;
+			//traverse the values in corresponding original pixels
+			for(int k = i-radius; k <= i+radius; k++){
+				for(int q = j-radius; q <= j+radius; q++){
+					if (k >= 0 && q >= 0&&k <m_width&& q <m_height){
+						pixel_value = getPixel(k,q);
+					}
+					else{
+						k1 = k;q1 =q;
+						switch(wrap_mode){//ZERO
+							case 0:{
+								pixel_value = glm::vec4(0.f);break;
+							}
+							case 1 :{//CLAMP
+								if (k1 < 0) k1 =0;
+								if(q1 < 0) q1 = 0;
+								if (k1 >= m_width) k1 =m_width-1;
+								if(q1 >= m_height) q1 = m_height-1;
+								pixel_value = getPixel(k1,q1);break;
+							}
+							case 2 :{//REPEAT
+								while (k1 < 0) k1 =k1+m_width;
+								while(q1 < 0) q1 = q1+m_height;
+								if (k1 >= m_width) k1 =k1%m_width;
+								if(q1 >= m_height) q1 = q1%m_height;
+								pixel_value = getPixel(k1,q1);break;
+							}}}
+					targetValue+= pixel_value*kernel[kernel_index];
+					kernel_index++;
+				}}
+			target->setPixel(i,j,targetValue);
+			}}
 }
 
 /*
@@ -87,7 +155,6 @@ void Image::filter_separable(Image *target, int kernel_size, float* kernel, Wrap
 	cg_assert (kernel_size > 0 && "kernel size should be greater than 0.");
 	cg_assert (target);
 	cg_assert (target->getWidth() == m_width && target->getHeight() == m_height);
-
 	// TODO: realize the 2d convolution with two
 	// convolutions of the image with a 1d-kernel.
 	// convolve the image horizontally and then convolve
@@ -95,6 +162,78 @@ void Image::filter_separable(Image *target, int kernel_size, float* kernel, Wrap
 	//
 	// use the methods getPixel(x, y, wrap_mode) and
 	// setPixel(x, y, value) to get and set pixels of an image
+	glm::vec4 target_horizontal[m_width][m_height];
+	int radius = kernel_size/2;
+	glm::vec4 targetValue = glm::vec4(0.f);
+	int kernel_index = 0;
+	int k1,q1;
+	glm::vec4 pixel_value;
+	//do the horizontal convolution.
+	for(int i =0; i < m_width; i++){
+		for(int j = 0; j < m_height; j++){
+			targetValue = glm::vec4(0.f);
+			kernel_index = 0;
+			//traverse the values in corresponding original pixels
+			/*for(int k = i-radius; k <= i+radius; k++){
+					if (k >= 0 && k <m_width){
+						pixel_value = getPixel(k,j);
+					}
+					else{
+						k1 = k;
+						switch(wrap_mode){//ZERO
+							case 1 :{//CLAMP
+								if (k1 < 0) k1 =0;
+								if (k1 >= m_width) k1 =m_width-1;
+								pixel_value = getPixel(k1,j);break;
+							}
+							case 2 :{//REPEAT
+								while (k1 < 0) k1 =k1+m_width;
+								if (k1 >= m_width) k1 =k1%m_width;
+								pixel_value = getPixel(k1,j);break;
+							}
+							default:{
+								pixel_value = glm::vec4(0.f);break;
+							}}}
+					targetValue+= pixel_value*kernel[kernel_index];
+					kernel_index++;
+				}*/
+			//target_horizontal[i][j]=targetValue;
+			std::cout<<i <<j<<std::endl;
+			target->setPixel(i,j,targetValue);
+		}
+	}
+	//do the vertikal convolution.
+	/*for(int i =0; i < m_width; i++){
+		for(int j = 0; j < m_height; j++){
+			targetValue = glm::vec4(0.f);
+			kernel_index = 0;
+			//traverse the values in corresponding original pixels
+			for(int q = i-radius; q <= i+radius; q++){
+					if (q >= 0 && q <m_height){
+						pixel_value = target_horizontal[i][q];
+					}
+					else{
+						q1 = q;
+						switch(wrap_mode){//ZERO
+							case 0:{
+								pixel_value = glm::vec4(0.f);break;
+							}
+							case 1 :{//CLAMP
+								if (q1 < 0) q1 =0;
+								if (q1 >= m_height) q1 =m_height-1;
+								pixel_value = target_horizontal[i][q1];break;
+							}
+							case 2 :{//REPEAT
+								while (q1 < 0) q1 =q1+m_width;
+								if (q1 >= m_height) q1 =q1%m_height;
+								pixel_value = target_horizontal[i][q1];break;
+							}}}
+					targetValue+= pixel_value*kernel[kernel_index];
+					kernel_index++;
+				}
+			target->setPixel(i,j,targetValue);
+		}
+	}*/
 }
 
 /**
