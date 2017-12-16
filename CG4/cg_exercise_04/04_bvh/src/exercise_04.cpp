@@ -149,6 +149,7 @@ void Image::filter(Image *target, int kernel_size, float* kernel, WrapMode wrap_
  *  - wrap_mode:   needs to be known to handle repeating 
  *                 textures correctly
  */
+
 void Image::filter_separable(Image *target, int kernel_size, float* kernel, WrapMode wrap_mode) const
 {
 	cg_assert (kernel_size%2==1 && "kernel size should be odd.");
@@ -162,7 +163,7 @@ void Image::filter_separable(Image *target, int kernel_size, float* kernel, Wrap
 	//
 	// use the methods getPixel(x, y, wrap_mode) and
 	// setPixel(x, y, value) to get and set pixels of an image
-	glm::vec4 target_horizontal[m_width][m_height];
+	std::vector<std::vector<glm::vec4>> target_horizontal(m_width, std::vector<glm::vec4>(m_height, glm::vec4(0.f)));
 	int radius = kernel_size/2;
 	glm::vec4 targetValue = glm::vec4(0.f);
 	int kernel_index = 0;
@@ -174,7 +175,7 @@ void Image::filter_separable(Image *target, int kernel_size, float* kernel, Wrap
 			targetValue = glm::vec4(0.f);
 			kernel_index = 0;
 			//traverse the values in corresponding original pixels
-			/*for(int k = i-radius; k <= i+radius; k++){
+			for(int k = i-radius; k <= i+radius; k++){
 					if (k >= 0 && k <m_width){
 						pixel_value = getPixel(k,j);
 					}
@@ -196,14 +197,14 @@ void Image::filter_separable(Image *target, int kernel_size, float* kernel, Wrap
 							}}}
 					targetValue+= pixel_value*kernel[kernel_index];
 					kernel_index++;
-				}*/
+				}
 			//target_horizontal[i][j]=targetValue;
 			std::cout<<i <<j<<std::endl;
 			target->setPixel(i,j,targetValue);
 		}
 	}
 	//do the vertikal convolution.
-	/*for(int i =0; i < m_width; i++){
+	for(int i =0; i < m_width; i++){
 		for(int j = 0; j < m_height; j++){
 			targetValue = glm::vec4(0.f);
 			kernel_index = 0;
@@ -233,8 +234,9 @@ void Image::filter_separable(Image *target, int kernel_size, float* kernel, Wrap
 				}
 			target->setPixel(i,j,targetValue);
 		}
-	}*/
+	}
 }
+
 
 /**
  * Reorder triangle indices in the vector triangle_indices 
