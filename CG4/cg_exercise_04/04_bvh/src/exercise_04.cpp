@@ -257,6 +257,9 @@ void Image::filter_separable(Image *target, int kernel_size, float* kernel, Wrap
  * Return value:
  *  - The number of triangles in the first set.
  */
+bool comp(std::pair<int,float> np1,std::pair<int,float> np2){
+	return np1.second<np2.second;
+}
 int BVH::reorder_triangles_median(
 	int first_triangle_idx, 
 	int num_triangles, 
@@ -268,9 +271,30 @@ int BVH::reorder_triangles_median(
 	cg_assert(num_triangles > 1);
 	cg_assert(axis >= 0);
 	cg_assert(axis < 3);
+	/*for(int m = 0; m < triangle_indices.size(); m++){
+		cg_assert(triangle_indices[m]*3+2< triangle_soup.vertices.size());
+	}*/
 
 	// TODO: Implement reordering.
-	return 0;
+	//std::cout<<"starting recorder_median"<<std::endl;
+	std::vector<std::pair<int,float>> v;
+	for(int i = first_triangle_idx; i < first_triangle_idx+num_triangles; i++){
+		int index = triangle_indices[i];
+		std::pair<int,float> np = std::pair<int,float>(index,1/3*(triangle_soup.vertices[3*index][axis]+
+				triangle_soup.vertices[3*index+1][axis]+triangle_soup.vertices[3*index+2][axis]));
+		v.push_back(np);
+	}
+
+	std::nth_element(v.begin(), v.begin() + (v.size()+1)/2, v.end(),comp);
+	for(int i = 0; i < num_triangles; i++){
+		triangle_indices[first_triangle_idx+i] = v[i].first;
+	}
+	//return 0;
+	//std::cout<<"ending recorder_median"<<std::endl;
+	/*for(int m = 0; m < triangle_indices.size(); m++){
+		cg_assert(triangle_indices[m]*3+2< triangle_soup.vertices.size());
+	}*/
+	return (num_triangles+1)/2;
 }
 
 /*
@@ -297,18 +321,53 @@ build_bvh(int node_idx, int first_triangle_idx, int num_triangles, int depth)
 {
 	cg_assert(num_triangles > 0);
 	cg_assert(node_idx >= 0);
+	cg_assert(num_triangles <= static_cast<int>(triangle_indices.size() - first_triangle_idx));
 	cg_assert(node_idx < static_cast<int>(nodes.size()));
 	cg_assert(depth >= 0);
-
+	//std::cout<<"starting build"<<std::endl;
 	Node& node = nodes[node_idx];
 
 	// TODO: Implement recursive build.
-	node.triangle_idx  = first_triangle_idx;
+	/*node.triangle_idx  = first_triangle_idx;
 	node.num_triangles = num_triangles;
 	node.aabb.min      = glm::vec3(-FLT_MAX);
 	node.aabb.max      = glm::vec3(FLT_MAX);
 	node.left          = -1;
-	node.right         = -1;
+	node.right         = -1;*/
+	node.triangle_idx  = first_triangle_idx;
+	node.num_triangles = num_triangles;
+	node.aabb.min      = glm::vec3(-FLT_MAX);
+	node.aabb.max      = glm::vec3(FLT_MAX);
+	if(node.num_triangles <= MAX_TRIANGLES_IN_LEAF){
+		node.left          = -1;
+		node.right         = -1;
+		for(int i = first_triangle_idx; i < first_triangle_idx+num_triangles; i++){
+			for(int j = 0; j < 3; j++){
+				int index = 3*triangle_indices[i]+j;
+				glm::vec3 vertex = triangle_soup.vertices[index];
+                node.aabb.extend(vertex);
+			}
+		}
+	}
+	else{
+		int split = reorder_triangles_median(first_triangle_idx, num_triangles, depth%3);
+		Node left = Node();
+		Node right = Node();
+		nodes.push_back(left);
+		node.left = nodes.size()-1;
+		build_bvh(node.left,first_triangle_idx, split, depth+1);
+		glm::vec3 kindMin = nodes[node.left].aabb.min;
+		glm::vec3 kindMax = nodes[node.left].aabb.max;
+        node.aabb.extend(kindMin);
+        node.aabb.extend(kindMax);
+		nodes.push_back(right);
+		node.right = nodes.size()-1;
+		build_bvh(node.right, first_triangle_idx+split, num_triangles-split, depth+1);
+		kindMin = nodes[node.right].aabb.min;
+		kindMax = nodes[node.right].aabb.max;
+        node.aabb.extend(kindMin);
+        node.aabb.extend(kindMax);
+	}
 }
 
 /*
