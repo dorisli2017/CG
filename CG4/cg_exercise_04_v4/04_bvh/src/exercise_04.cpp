@@ -132,7 +132,6 @@ void Image::filter(Image *target, int kernel_size, float* kernel, WrapMode wrap_
 			}
 			target->setPixel(i,j,targetValue);
 			}}
-
 }
 
 /*
