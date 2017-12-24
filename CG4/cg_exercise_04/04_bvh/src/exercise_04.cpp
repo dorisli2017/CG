@@ -460,5 +460,30 @@ void DiscreteFourier2D::reconstruct(
 	std::complex<float> const* spectrum,
 	std::complex<float>	* reconstruction)
 {
+	std::complex<float> i(0.f, 1.f);
+	std::complex<float> innen_l_m(0.0f, 0.0f);
+	std::vector<std::complex<float>> innen (M*N, std::complex<float>(0.0f, 0.0f));
+	for(int l =0; l < M; l++){
+		for(int m = 0; m< N; m++){
+			innen_l_m = std::complex<float>(0.0f, 0.0f);
+			for(int n = 0; n < M; n++){
+				float rea = 2*M_PI*l*((float)n/M-(1.f/2.f));
+				innen_l_m += spectrum[m*M+n]*exp(i*std::complex<float>(rea,0.f));
+			}
+			innen[l*N+m]= innen_l_m;
+		}
+	}
+	std::complex<float> recon_k_l(0.0f, 0.0f);
+	float com1 = 1/sqrt(M*N);
+	for(int k = 0; k < N; k++){
+		for(int l =0; l < M; l++){
+			recon_k_l = std::complex<float>(0.0f, 0.0f);
+			for(int m = 0; m < N; m++){
+				float rea = 2*M_PI*k*((float)m/N-(1.f/2.f));
+				recon_k_l += innen[l*N+m]*exp(i*std::complex<float>(rea,0.f));
+			}
+			reconstruction[k*M+l]= com1*recon_k_l;
+		}
+	}
 }
 // CG_REVISION 923b9bac8f5225422060a543872d939f9f9f68dd
